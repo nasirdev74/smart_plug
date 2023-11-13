@@ -1,0 +1,6 @@
+package au.com.sla.smartplug
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity: FlutterActivity() {
+}
