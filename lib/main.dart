@@ -9,6 +9,8 @@ final credentialBleData = json.encode({
   "topic": "832c4ee4-68d3-11ee-8c99-0242ac120002"
 });
 
+final powerBleData = json.encode({"pwr": 1});
+
 const BLUETOOTH_SERVICE_UUID = "37fc19ab-98ca-4543-a68b-d183da78acdc";
 const BLUETOOTH_WRITE_UUID = "a40d0c2e-73ba-4d8b-8eef-9a0666992e56";
 const BLUETOOTH_NOTIFICATION_UUID = "49535343-8841-43f4-a8d4-ecbe34729bb3";

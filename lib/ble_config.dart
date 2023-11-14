@@ -15,8 +15,11 @@ class _BleConfigViewState extends State<BleConfigView> {
   var I = "";
   var E = "";
   var V = "";
+  var led = false;
   var _log = "";
   var isConnecting = false;
+  var isWriting = false;
+  BluetoothDevice? device;
 
   @override
   void initState() {
@@ -46,9 +49,10 @@ class _BleConfigViewState extends State<BleConfigView> {
     if (isOn) {
       log("ble turned on. start scanning...");
       await FlutterBluePlus.startScan(
-        continuousUpdates: true,
-        removeIfGone: const Duration(seconds: 1),
+        timeout: const Duration(minutes: 10),
+        androidUsesFineLocation: true,
       );
+      log("ble scanning started.");
     }
   }
 
@@ -57,21 +61,21 @@ class _BleConfigViewState extends State<BleConfigView> {
       await device.connect(timeout: CONNECT_TIMEOUT);
       log("connected -- (i)");
       await listenBle(device);
-      await writeBle(device);
+      await writeBle(device, credentialBleData);
     } catch (error) {
       log("failed to connect -- (i)");
       try {
         await device.connect(timeout: CONNECT_TIMEOUT);
         log("connected -- (ii)");
         await listenBle(device);
-        await writeBle(device);
+        await writeBle(device, credentialBleData);
       } catch (error) {
         log("failed to connect -- (ii)");
         try {
           await device.connect(timeout: CONNECT_TIMEOUT);
           log("connected -- (iii)");
           await listenBle(device);
-          await writeBle(device);
+          await writeBle(device, credentialBleData);
         } catch (error) {
           log("failed to connect -- (iii) -- giving up.");
         }
@@ -80,7 +84,7 @@ class _BleConfigViewState extends State<BleConfigView> {
   }
 
   /// used to write data to bluetooth device
-  Future writeBle(BluetoothDevice device) async {
+  Future writeBle(BluetoothDevice device, String data) async {
     try {
       var services = <BluetoothService>[];
       try {
@@ -97,8 +101,8 @@ class _BleConfigViewState extends State<BleConfigView> {
               if (characteristic.uuid.toString() == "fefe") {
                 log("notification characteristic matched: ${characteristic.uuid.toString()}");
                 try {
-                  log("writing data to ble: $credentialBleData");
-                  await characteristic.write(credentialBleData.codeUnits);
+                  log("writing data to ble: $data");
+                  await characteristic.write(data.codeUnits);
                 } catch (err) {
                   log("characteristic.setNotifyValue failed.");
                 }
@@ -139,6 +143,8 @@ class _BleConfigViewState extends State<BleConfigView> {
                           if (message.startsWith("I")) I = message;
                           if (message.startsWith("E")) E = message;
                           if (message.startsWith("V")) V = message;
+                          if (message.startsWith("LED_ON")) led = true;
+                          if (message.startsWith("LED_OFF")) led = false;
                         });
                       }
                     }
@@ -211,8 +217,13 @@ class _BleConfigViewState extends State<BleConfigView> {
                     stream: FlutterBluePlus.scanResults,
                     initialData: const [],
                     builder: (_, result) {
-                      final devices = (result.requireData as List<ScanResult>)
-                          .where((e) => e.device.advName.startsWith("SLA_SP"));
+                      developer.log(result.toString());
+                      var devices = <ScanResult>[];
+                      if (result.requireData.isNotEmpty) {
+                        devices = (result.requireData as List<ScanResult>)
+                            .where((e) => e.device.advName.startsWith("SLA_SP"))
+                            .toList();
+                      }
 
                       if (devices.isEmpty) {
                         return const Center(
@@ -239,6 +250,7 @@ class _BleConfigViewState extends State<BleConfigView> {
                                 onTap: () async {
                                   if (!isConnecting) {
                                     isConnecting = true;
+                                    this.device = device;
                                     await connectBle(device);
                                     isConnecting = false;
                                   }
@@ -264,6 +276,27 @@ class _BleConfigViewState extends State<BleConfigView> {
                       );
                     },
                   ),
+            Positioned(
+              bottom: 65,
+              child: CircleAvatar(
+                radius: 30,
+                backgroundColor: led ? Colors.red.shade700 : Colors.grey.shade400,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.power_settings_new,
+                    size: 30,
+                  ),
+                  color: Colors.white,
+                  onPressed: () async {
+                    if (!isWriting && device != null) {
+                      isWriting = true;
+                      await writeBle(device!, powerBleData);
+                      isWriting = false;
+                    }
+                  },
+                ),
+              ),
+            ),
           ],
         ),
       ),
