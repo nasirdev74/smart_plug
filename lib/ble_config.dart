@@ -1,6 +1,7 @@
 import 'main.dart';
 import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
@@ -12,20 +13,24 @@ class BleConfigView extends StatefulWidget {
 }
 
 class _BleConfigViewState extends State<BleConfigView> {
-  var I = "";
-  var E = "";
-  var V = "";
+  double? I;
+  double? E;
+  double? V;
+
   var led = false;
   var _log = "";
   var isConnecting = false;
   var isWriting = false;
   BluetoothDevice? device;
 
+  static const _orientations = [DeviceOrientation.portraitUp];
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await configBle();
+      SystemChrome.setPreferredOrientations(_orientations);
     });
   }
 
@@ -140,9 +145,15 @@ class _BleConfigViewState extends State<BleConfigView> {
                       log("message received from BLE: $message");
                       if (mounted) {
                         setState(() {
-                          if (message.startsWith("I")) I = message;
-                          if (message.startsWith("E")) E = message;
-                          if (message.startsWith("V")) V = message;
+                          if (message.startsWith("I")) {
+                            I = double.tryParse(message.replaceAll(RegExp(r"[^\d.]"), ""));
+                          }
+                          if (message.startsWith("E")) {
+                            E = double.tryParse(message.replaceAll(RegExp(r"[^\d.]"), ""));
+                          }
+                          if (message.startsWith("V")) {
+                            V = double.tryParse(message.replaceAll(RegExp(r"[^\d.]"), ""));
+                          }
                           if (message.startsWith("LED_ON")) led = true;
                           if (message.startsWith("LED_OFF")) led = false;
                         });
@@ -169,7 +180,7 @@ class _BleConfigViewState extends State<BleConfigView> {
 
   @override
   Widget build(BuildContext context) {
-    final isAllEmpty = I.isEmpty && E.isEmpty && V.isEmpty;
+    final isAllEmpty = I == null && V == null && E == null;
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -204,11 +215,48 @@ class _BleConfigViewState extends State<BleConfigView> {
                     children: [
                       const Spacer(),
                       const Spacer(),
-                      Text(I, style: stylei.copyWith(color: Colors.deepOrange)),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width - 60,
+                        child: FittedBox(
+                          child: Text(
+                            "Current: ${(I ?? 0).toStringAsFixed(2)} Amp",
+                            style: stylei.copyWith(color: Colors.deepOrange),
+                          ),
+                        ),
+                      ),
                       const Spacer(),
-                      Text(E, style: stylei.copyWith(color: Colors.purpleAccent)),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width - 60,
+                        child: FittedBox(
+                          child: Text(
+                            "Volt: ${(V ?? 0).toStringAsFixed(2)} V(AC)",
+                            style: stylei.copyWith(color: Colors.purpleAccent),
+                          ),
+                        ),
+                      ),
                       const Spacer(),
-                      Text(V, style: stylei.copyWith(color: Colors.pinkAccent)),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width - 60,
+                        child: FittedBox(
+                          child: Text(
+                            "Power: ${((I ?? 0) * (V ?? 0)).toStringAsFixed(2)} W",
+                            style: stylei.copyWith(color: Colors.pinkAccent),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width - 60,
+                        child: FittedBox(
+                          child: Text(
+                            "Energy: ${(E ?? 0).toStringAsFixed(4)} KW/Hr",
+                            maxLines: 1,
+                            overflow: TextOverflow.clip,
+                            style: stylei.copyWith(color: Colors.cyanAccent),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
                       const Spacer(),
                       const Spacer(),
                     ],
